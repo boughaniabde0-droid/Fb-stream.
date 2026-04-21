@@ -1,14 +1,14 @@
 services:
   - type: web
     name: live-stream-manager
-    env: node
+    env: docker
     region: oregon
     plan: starter
-    buildCommand: |
-      apt-get update -y && apt-get install -y ffmpeg && npm install
-    startCommand: node server.js
+    dockerfilePath: ./Dockerfile
     envVars:
       - key: NODE_ENV
         value: production
+      - key: PORT
+        value: 3000
     healthCheckPath: /api/streams
     autoDeploy: true
