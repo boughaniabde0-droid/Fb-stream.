@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: live-stream-manager
+    env: node
+    region: oregon
+    plan: starter
+    buildCommand: |
+      apt-get update -y && apt-get install -y ffmpeg && npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+    healthCheckPath: /api/streams
+    autoDeploy: true

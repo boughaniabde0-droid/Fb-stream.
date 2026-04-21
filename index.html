@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>بث مباشر - فيسبوك</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.4.12/hls.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --fb-blue: #1877f2;
+      --fb-dark: #0d1117;
+      --fb-panel: #161b22;
+      --fb-border: #21262d;
+      --fb-text: #e6edf3;
+      --fb-muted: #8b949e;
+      --fb-green: #2ea043;
+      --fb-red: #f85149;
+      --fb-yellow: #d29922;
+      --glow: 0 0 24px rgba(24,119,242,0.35);
+    }
+
+    body {
+      font-family: 'Cairo', sans-serif;
+      background: var(--fb-dark);
+      color: var(--fb-text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      background-image:
+        radial-gradient(ellipse at 20% 0%, rgba(24,119,242,0.12) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 100%, rgba(24,119,242,0.08) 0%, transparent 60%);
+    }
+
+    /* ── Header ── */
+    header {
+      width: 100%;
+      max-width: 960px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 0 28px;
+      border-bottom: 1px solid var(--fb-border);
+      margin-bottom: 28px;
+    }
+    .fb-logo {
+      width: 44px; height: 44px;
+      background: var(--fb-blue);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px; font-weight: 900; color: #fff;
+      box-shadow: var(--glow);
+      flex-shrink: 0;
+    }
+    header h1 {
+      font-size: 1.5rem; font-weight: 900;
+      background: linear-gradient(135deg, #fff 40%, var(--fb-blue));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    header p { font-size: 0.82rem; color: var(--fb-muted); margin-top: 2px; }
+
+    /* ── Status Bar ── */
+    .status-bar {
+      width: 100%; max-width: 960px;
+      display: flex; align-items: center; gap: 10px;
+      background: var(--fb-panel);
+      border: 1px solid var(--fb-border);
+      border-radius: 10px;
+      padding: 10px 18px;
+      margin-bottom: 22px;
+      font-size: 0.83rem;
+    }
+    .dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--fb-muted);
+      flex-shrink: 0;
+      transition: background 0.4s;
+    }
+    .dot.live { background: var(--fb-red); animation: pulse-dot 1.2s infinite; }
+    .dot.ready { background: var(--fb-green); }
+    @keyframes pulse-dot {
+      0%,100% { opacity: 1; box-shadow: 0 0 0 0 rgba(248,81,73,0.5); }
+      50% { opacity: 0.7; box-shadow: 0 0 0 6px rgba(248,81,73,0); }
+    }
+    #status-text { flex: 1; color: var(--fb-muted); }
+    #status-text b { color: var(--fb-text); }
+
+    /* ── Main Grid ── */
+    .grid {
+      width: 100%; max-width: 960px;
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 20px;
+    }
+    @media (max-width: 740px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── Card ── */
+    .card {
+      background: var(--fb-panel);
+      border: 1px solid var(--fb-border);
+      border-radius: 14px;
+      padding: 22px;
+      position: relative;
+      overflow: hidden;
+    }
+    .card::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(24,119,242,0.04) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 1.4px;
+      color: var(--fb-muted);
+      margin-bottom: 14px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .card-title span { font-size: 15px; }
+
+    /* ── Video Preview ── */
+    .video-wrap {
+      width: 100%; max-width: 960px;
+      margin-bottom: 20px;
+      background: var(--fb-panel);
+      border: 1px solid var(--fb-border);
+      border-radius: 14px;
+      overflow: hidden;
+      position: relative;
+    }
+    video#preview {
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: #000;
+      display: block;
+    }
+    .video-overlay {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 12px;
+      background: rgba(0,0,0,0.7);
+      transition: opacity 0.4s;
+      pointer-events: none;
+    }
+    .video-overlay.hidden { opacity: 0; }
+    .video-overlay svg { opacity: 0.35; }
+    .video-overlay p { color: var(--fb-muted); font-size: 0.9rem; }
+
+    /* ── Live Badge ── */
+    .live-badge {
+      position: absolute; top: 14px; right: 14px;
+      background: var(--fb-red);
+      color: #fff; font-size: 0.72rem; font-weight: 700;
+      letter-spacing: 1px;
+      padding: 4px 10px; border-radius: 6px;
+      display: none; align-items: center; gap: 5px;
+      box-shadow: 0 2px 12px rgba(248,81,73,0.5);
+    }
+    .live-badge.show { display: flex; }
+    .live-badge::before {
+      content: '';
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #fff;
+      animation: pulse-dot 1s infinite;
+    }
+
+    /* ── Form Inputs ── */
+    label {
+      display: block;
+      font-size: 0.8rem; font-weight: 600; color: var(--fb-muted);
+      margin-bottom: 6px;
+    }
+    input[type="text"], input[type="password"], textarea {
+      width: 100%;
+      background: var(--fb-dark);
+      border: 1px solid var(--fb-border);
+      border-radius: 8px;
+      color: var(--fb-text);
+      font-family: 'Cairo', monospace;
+      font-size: 0.82rem;
+      padding: 10px 14px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      margin-bottom: 14px;
+      direction: ltr;
+    }
+    input:focus, textarea:focus {
+      border-color: var(--fb-blue);
+      box-shadow: 0 0 0 3px rgba(24,119,242,0.18);
+    }
+    textarea { resize: vertical; min-height: 70px; }
+
+    .toggle-vis {
+      position: absolute; left: 12px; top: 50%;
+      transform: translateY(-50%);
+      background: none; border: none; cursor: pointer;
+      color: var(--fb-muted); font-size: 16px;
+      padding: 0;
+    }
+    .input-wrap { position: relative; }
+    .input-wrap input { padding-left: 38px; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 11px 22px; border-radius: 9px;
+      font-family: 'Cairo', sans-serif;
+      font-size: 0.9rem; font-weight: 700;
+      cursor: pointer; border: none;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: var(--fb-blue); color: #fff;
+      box-shadow: 0 4px 16px rgba(24,119,242,0.35);
+    }
+    .btn-primary:hover:not(:disabled) {
+      background: #1565d8;
+      box-shadow: 0 6px 22px rgba(24,119,242,0.5);
+      transform: translateY(-1px);
+    }
+    .btn-danger {
+      background: var(--fb-red); color: #fff;
+      box-shadow: 0 4px 16px rgba(248,81,73,0.3);
+    }
+    .btn-danger:hover:not(:disabled) {
+      background: #d73a3a;
+      transform: translateY(-1px);
+    }
+    .btn-outline {
+      background: transparent; color: var(--fb-text);
+      border: 1px solid var(--fb-border);
+    }
+    .btn-outline:hover:not(:disabled) {
+      border-color: var(--fb-blue); color: var(--fb-blue);
+    }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none !important; }
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+
+    /* ── Info Box ── */
+    .info-box {
+      background: rgba(24,119,242,0.08);
+      border: 1px solid rgba(24,119,242,0.25);
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 0.8rem;
+      color: var(--fb-muted);
+      margin-top: 16px;
+      line-height: 1.7;
+    }
+    .info-box a { color: var(--fb-blue); text-decoration: none; }
+    .info-box a:hover { text-decoration: underline; }
+
+    /* ── Log ── */
+    #log {
+      background: var(--fb-dark);
+      border: 1px solid var(--fb-border);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 0.75rem;
+      font-family: 'Courier New', monospace;
+      direction: ltr;
+      height: 160px;
+      overflow-y: auto;
+      color: var(--fb-muted);
+      margin-top: 0;
+    }
+    #log .entry { padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    #log .entry.ok { color: #3fb950; }
+    #log .entry.err { color: var(--fb-red); }
+    #log .entry.info { color: var(--fb-blue); }
+
+    /* ── Stats Row ── */
+    .stats-row {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 10px; margin-bottom: 20px;
+    }
+    .stat-box {
+      background: var(--fb-panel);
+      border: 1px solid var(--fb-border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      text-align: center;
+    }
+    .stat-box .val {
+      font-size: 1.3rem; font-weight: 900; color: var(--fb-text);
+      font-variant-numeric: tabular-nums;
+    }
+    .stat-box .lbl { font-size: 0.72rem; color: var(--fb-muted); margin-top: 2px; }
+
+    /* ── HLS Section ── */
+    .section-divider {
+      width: 100%; max-width: 960px;
+      display: flex; align-items: center; gap: 12px;
+      margin: 8px 0 20px;
+      font-size: 0.75rem; color: var(--fb-muted); font-weight: 600;
+      letter-spacing: 1px; text-transform: uppercase;
+    }
+    .section-divider::before, .section-divider::after {
+      content: ''; flex: 1;
+      height: 1px; background: var(--fb-border);
+    }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--fb-dark); }
+    ::-webkit-scrollbar-thumb { background: var(--fb-border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="fb-logo">f</div>
+  <div>
+    <h1>بث مباشر عبر فيسبوك</h1>
+    <p>دفق RTMP + معاينة HLS/M3U8</p>
+  </div>
+</header>
+
+<!-- Status Bar -->
+<div class="status-bar">
+  <div class="dot" id="status-dot"></div>
+  <div id="status-text"><b>غير متصل</b> — أدخل بيانات البث وابدأ</div>
+  <div id="timer-display" style="font-variant-numeric:tabular-nums;color:var(--fb-muted);font-size:0.8rem;"></div>
+</div>
+
+<!-- Stats -->
+<div class="stats-row" style="width:100%;max-width:960px;">
+  <div class="stat-box">
+    <div class="val" id="stat-duration">00:00</div>
+    <div class="lbl">مدة البث</div>
+  </div>
+  <div class="stat-box">
+    <div class="val" id="stat-viewers">—</div>
+    <div class="lbl">المشاهدون</div>
+  </div>
+  <div class="stat-box">
+    <div class="val" id="stat-quality">—</div>
+    <div class="lbl">جودة الفيديو</div>
+  </div>
+</div>
+
+<!-- Video Preview -->
+<div class="video-wrap" style="max-width:960px;width:100%;">
+  <video id="preview" controls playsinline></video>
+  <div class="video-overlay" id="video-overlay">
+    <svg width="56" height="56" fill="none" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10" stroke="#8b949e" stroke-width="1.5"/>
+      <path d="M10 8l6 4-6 4V8z" fill="#8b949e"/>
+    </svg>
+    <p>لم يبدأ البث بعد</p>
+  </div>
+  <div class="live-badge" id="live-badge">LIVE</div>
+</div>
+
+<div class="section-divider">إعدادات البث</div>
+
+<div class="grid">
+
+  <!-- Left: RTMP + HLS Settings -->
+  <div style="display:flex;flex-direction:column;gap:20px;">
+
+    <!-- RTMP Card -->
+    <div class="card">
+      <div class="card-title"><span>📡</span> إعدادات RTMP (فيسبوك)</div>
+
+      <label>رابط بث RTMP الكامل (Stream URL + Key)</label>
+      <div class="input-wrap">
+        <input type="password" id="rtmp-url"
+          placeholder="rtmps://live-api-s.facebook.com:443/rtmp/FB-xxxxx"
+          value=""/>
+        <button class="toggle-vis" onclick="toggleVis('rtmp-url', this)" title="إظهار/إخفاء">👁</button>
+      </div>
+
+      <label>أو أدخل المكونين منفصلَين</label>
+      <input type="text" id="rtmp-server"
+        placeholder="rtmps://live-api-s.facebook.com:443/rtmp/"
+        value="rtmps://live-api-s.facebook.com:443/rtmp/"/>
+      <div class="input-wrap">
+        <input type="password" id="stream-key"
+          placeholder="FB-122196593588453554-0-Ab5YYu..."
+          value=""/>
+        <button class="toggle-vis" onclick="toggleVis('stream-key', this)" title="إظهار/إخفاء">👁</button>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-copy-rtmp" onclick="copyRTMP()">
+          📋 نسخ رابط RTMP الكامل
+        </button>
+        <button class="btn btn-outline" onclick="openFBLive()">
+          🔗 فتح إعدادات البث في فيسبوك
+        </button>
+      </div>
+
+      <div class="info-box">
+        ⚠️ <strong>ملاحظة:</strong> المتصفح لا يدعم إرسال RTMP مباشرةً. يجب استخدام:
+        <br>• <strong>OBS Studio</strong> أو <strong>Streamlabs</strong> — الصقْ رابط RTMP فيها.
+        <br>• أو <strong>FFmpeg</strong> من سطر الأوامر:
+        <br><code style="font-size:0.75rem;color:#3fb950;direction:ltr;display:block;margin-top:6px;padding:6px;background:rgba(0,0,0,0.3);border-radius:6px;">
+          ffmpeg -re -i input.mp4 -c copy -f flv &lt;RTMP_URL&gt;
+        </code>
+        <br>• أو أدخل رابط M3U8 أدناه لمعاينة بث موجود.
+        <br><br>📖 احصل على مفتاح البث من: <a href="https://www.facebook.com/live/producer" target="_blank">facebook.com/live/producer</a>
+      </div>
+    </div>
+
+    <!-- HLS Preview Card -->
+    <div class="card">
+      <div class="card-title"><span>📺</span> معاينة بث HLS / M3U8</div>
+
+      <label>رابط M3U8 للمعاينة (اختياري)</label>
+      <input type="text" id="m3u8-url"
+        placeholder="https://example.com/stream/live.m3u8"/>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-play" onclick="startHLS()">
+          ▶ تشغيل المعاينة
+        </button>
+        <button class="btn btn-outline" onclick="stopHLS()">
+          ⏹ إيقاف
+        </button>
+      </div>
+
+      <div class="info-box" style="margin-top:14px;">
+        💡 يمكنك الحصول على رابط HLS من بث فيسبوك بعد بدئه، أو استخدام أي رابط M3U8 لتتبع البث.
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Right: Controls + Log -->
+  <div style="display:flex;flex-direction:column;gap:20px;">
+
+    <!-- Stream Control -->
+    <div class="card">
+      <div class="card-title"><span>🎛</span> تحكم البث</div>
+
+      <label>عنوان البث المباشر</label>
+      <input type="text" id="stream-title" placeholder="بثي المباشر على فيسبوك"/>
+
+      <label>وصف (اختياري)</label>
+      <textarea id="stream-desc" placeholder="أكتب وصفاً للبث..."></textarea>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-start" onclick="startStream()">
+          🔴 بدء البث
+        </button>
+        <button class="btn btn-danger" id="btn-stop" onclick="stopStream()" disabled>
+          ⏹ إنهاء البث
+        </button>
+      </div>
+
+      <div style="margin-top:14px;">
+        <label>📊 سجل الأحداث</label>
+        <div id="log"></div>
+      </div>
+    </div>
+
+    <!-- FFmpeg Command Card -->
+    <div class="card">
+      <div class="card-title"><span>💻</span> أمر FFmpeg جاهز</div>
+      <label>انسخ الأمر وشغّله في الطرفية</label>
+      <textarea id="ffmpeg-cmd" style="font-size:0.7rem;height:100px;direction:ltr;color:#3fb950;"
+        readonly placeholder="سيظهر هنا بعد إدخال رابط RTMP..."></textarea>
+      <div class="btn-row" style="margin-top:6px;">
+        <button class="btn btn-outline" onclick="copyFFmpeg()">📋 نسخ الأمر</button>
+        <button class="btn btn-outline" onclick="genFFmpeg()">🔄 توليد الأمر</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // ── State ──
+  let hlsInstance = null;
+  let streaming = false;
+  let startTime = null;
+  let durationInterval = null;
+
+  // ── Log ──
+  function log(msg, type='info') {
+    const el = document.getElementById('log');
+    const d = document.createElement('div');
+    d.className = 'entry ' + type;
+    const t = new Date().toLocaleTimeString('ar-EG');
+    d.textContent = `[${t}] ${msg}`;
+    el.prepend(d);
+  }
+
+  // ── Toggle password visibility ──
+  function toggleVis(id, btn) {
+    const el = document.getElementById(id);
+    if (el.type === 'password') { el.type = 'text'; btn.textContent = '🔒'; }
+    else { el.type = 'password'; btn.textContent = '👁'; }
+  }
+
+  // ── Build full RTMP URL ──
+  function getRTMP() {
+    const full = document.getElementById('rtmp-url').value.trim();
+    if (full) return full;
+    const server = document.getElementById('rtmp-server').value.trim();
+    const key = document.getElementById('stream-key').value.trim();
+    return server && key ? server + key : '';
+  }
+
+  // ── Copy RTMP ──
+  function copyRTMP() {
+    const url = getRTMP();
+    if (!url) { log('⚠ أدخل رابط RTMP أو مفتاح البث أولاً', 'err'); return; }
+    navigator.clipboard.writeText(url).then(() => {
+      log('✅ تم نسخ رابط RTMP', 'ok');
+    });
+  }
+
+  // ── Open FB Live ──
+  function openFBLive() {
+    window.open('https://www.facebook.com/live/producer', '_blank');
+  }
+
+  // ── HLS Player ──
+  function startHLS() {
+    const url = document.getElementById('m3u8-url').value.trim();
+    if (!url) { log('⚠ أدخل رابط M3U8 للمعاينة', 'err'); return; }
+    stopHLS();
+    const video = document.getElementById('preview');
+    document.getElementById('video-overlay').classList.add('hidden');
+
+    if (Hls.isSupported()) {
+      hlsInstance = new Hls({ lowLatencyMode: true });
+      hlsInstance.loadSource(url);
+      hlsInstance.attachMedia(video);
+      hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+        video.play().catch(()=>{});
+        log('▶ تشغيل HLS: ' + url.slice(0,40) + '...', 'ok');
+        document.getElementById('stat-quality').textContent = 'HLS';
+      });
+      hlsInstance.on(Hls.Events.ERROR, (_, data) => {
+        if (data.fatal) {
+          log('❌ خطأ HLS: ' + data.details, 'err');
+          document.getElementById('video-overlay').classList.remove('hidden');
+        }
+      });
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = url;
+      video.play().catch(()=>{});
+      log('▶ تشغيل HLS (native): ' + url.slice(0,40) + '...', 'ok');
+    } else {
+      log('❌ المتصفح لا يدعم HLS', 'err');
+    }
+  }
+
+  function stopHLS() {
+    const video = document.getElementById('preview');
+    if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
+    video.pause();
+    video.src = '';
+    document.getElementById('video-overlay').classList.remove('hidden');
+    log('⏹ توقف المعاينة', 'info');
+  }
+
+  // ── Stream Start/Stop ──
+  function startStream() {
+    const rtmp = getRTMP();
+    const title = document.getElementById('stream-title').value.trim() || 'بث مباشر';
+
+    if (!rtmp) {
+      log('⚠ أدخل رابط RTMP أو مفتاح البث أولاً', 'err');
+      return;
+    }
+
+    streaming = true;
+    startTime = Date.now();
+    document.getElementById('btn-start').disabled = true;
+    document.getElementById('btn-stop').disabled = false;
+    document.getElementById('status-dot').className = 'dot live';
+    document.getElementById('status-text').innerHTML = `<b>جارٍ البث</b> — ${title}`;
+    document.getElementById('live-badge').classList.add('show');
+
+    log(`🔴 بدأ البث: "${title}"`, 'ok');
+    log(`📡 رابط RTMP: ${rtmp.slice(0,40)}...`, 'info');
+    genFFmpeg();
+
+    // Duration counter
+    durationInterval = setInterval(() => {
+      const s = Math.floor((Date.now() - startTime) / 1000);
+      const mm = String(Math.floor(s/60)).padStart(2,'0');
+      const ss = String(s % 60).padStart(2,'0');
+      document.getElementById('stat-duration').textContent = mm + ':' + ss;
+    }, 1000);
+  }
+
+  function stopStream() {
+    streaming = false;
+    clearInterval(durationInterval);
+    document.getElementById('btn-start').disabled = false;
+    document.getElementById('btn-stop').disabled = true;
+    document.getElementById('status-dot').className = 'dot';
+    document.getElementById('status-text').innerHTML = '<b>متوقف</b> — انتهى البث';
+    document.getElementById('live-badge').classList.remove('show');
+    log('⏹ انتهى البث', 'info');
+  }
+
+  // ── FFmpeg Command Generator ──
+  function genFFmpeg() {
+    const rtmp = getRTMP();
+    if (!rtmp) {
+      document.getElementById('ffmpeg-cmd').value = '# أدخل رابط RTMP أولاً';
+      return;
+    }
+    const m3u8 = document.getElementById('m3u8-url').value.trim();
+    let cmd = '';
+    if (m3u8) {
+      cmd = `ffmpeg -re -i "${m3u8}" \\\n  -c:v libx264 -preset veryfast -b:v 3000k \\\n  -c:a aac -b:a 128k \\\n  -f flv "${rtmp}"`;
+    } else {
+      cmd = `ffmpeg -re -i "input.mp4" \\\n  -c:v libx264 -preset veryfast -b:v 3000k \\\n  -maxrate 3000k -bufsize 6000k \\\n  -pix_fmt yuv420p -g 50 \\\n  -c:a aac -b:a 128k -ar 44100 \\\n  -f flv "${rtmp}"`;
+    }
+    document.getElementById('ffmpeg-cmd').value = cmd;
+  }
+
+  function copyFFmpeg() {
+    const el = document.getElementById('ffmpeg-cmd');
+    if (!el.value || el.value.startsWith('#')) { log('⚠ ولّد الأمر أولاً', 'err'); return; }
+    navigator.clipboard.writeText(el.value).then(() => log('✅ تم نسخ أمر FFmpeg', 'ok'));
+  }
+
+  // ── Auto-gen FFmpeg on input change ──
+  ['rtmp-url','rtmp-server','stream-key','m3u8-url'].forEach(id => {
+    document.getElementById(id).addEventListener('input', genFFmpeg);
+  });
+
+  // ── Initial log ──
+  log('مرحباً! أدخل مفتاح البث من فيسبوك للبدء.', 'info');
+  log('يمكن استخدام HLS لمعاينة البث إذا أُتيح رابط M3U8.', 'info');
+</script>
+</body>
+</html>
